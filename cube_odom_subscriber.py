@@ -2,6 +2,7 @@
 
 import rospy
 from nav_msgs.msg import Odometry
+from std_msgs.msg import String
 
 # Callback function to handle odometry messages
 def odom_callback(msg, cube_name):
