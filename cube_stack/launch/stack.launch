@@ -1,0 +1,4 @@
+<launch>
+    <node name="cube_odom_subscriber" pkg="cube_stack" type="cube_odom_subscriber.py" output="screen" />
+    <node name="pick_demo" pkg="cube_stack" type="stack_objects.py" output="screen" />
+</launch>
