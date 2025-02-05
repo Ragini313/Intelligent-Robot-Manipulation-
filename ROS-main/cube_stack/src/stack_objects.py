@@ -30,6 +30,9 @@ def cube_position_callback(msg):
     cube_pose.position = msg.position
     cube_pose.orientation = msg.orientation
     cube_positions.append(cube_pose)
+
+## To get the pose from ZED2_pose_Estimator:
+
     
 
 def move_to_pose(move_group, pose):
@@ -157,9 +160,16 @@ def stack_objects():
 
     stack_poses = [
         Pose(position=geometry_msgs.msg.Point(0.5, 0.0, 0.1), orientation=geometry_msgs.msg.Quaternion(0.0, 0.0, 0.0, 1.0)),
+        Pose(position=geometry_msgs.msg.Point(0.5, 0.0, 0.15), orientation=geometry_msgs.msg.Quaternion(0.0, 0.0, 0.0, 1.0)),
         Pose(position=geometry_msgs.msg.Point(0.5, 0.0, 0.2), orientation=geometry_msgs.msg.Quaternion(0.0, 0.0, 0.0, 1.0)),
-        Pose(position=geometry_msgs.msg.Point(0.5, 0.0, 0.3), orientation=geometry_msgs.msg.Quaternion(0.0, 0.0, 0.0, 1.0)),
     ]
+
+    ### code below is to line them up next to each other along the x-axis, instead of stacking them
+    # stack_poses = [
+    #     Pose(position=geometry_msgs.msg.Point(0.5, 0.0, 0.1), orientation=geometry_msgs.msg.Quaternion(0.0, 0.0, 0.0, 1.0)),
+    #     Pose(position=geometry_msgs.msg.Point(0.55, 0.0, 0.1), orientation=geometry_msgs.msg.Quaternion(0.0, 0.0, 0.0, 1.0)),
+    #     Pose(position=geometry_msgs.msg.Point(0.6, 0.0, 0.1), orientation=geometry_msgs.msg.Quaternion(0.0, 0.0, 0.0, 1.0)),
+    # ]
 
     if not cube_positions:
         rospy.loginfo("No cube positions received yet. Waiting...")
