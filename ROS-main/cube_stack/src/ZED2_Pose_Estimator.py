@@ -166,8 +166,16 @@ def image_callback(msg):
         # Optionally transform to world frame
         world_positions = transform_to_world(positions)
 
-        # Print cube poses
-        rospy.loginfo(f"Cube poses in world frame: {world_positions}")
+        # Publish cube poses
+        for pos in world_positions:
+            cube_msg = Cube()
+            cube_msg.position = geometry_msgs.msg.Point(pos[0], pos[1], pos[2])
+            cube_msg.orientation = geometry_msgs.msg.Quaternion(0, 0, 0, 1)  # Default orientation
+            cube_pub.publish(cube_msg)
+
+        # Display the annotated RGB image
+        cv2.imshow("Cube Detection", annotated_image)
+        cv2.waitKey(1)
 
     except rospy.ROSException as e:
         rospy.logwarn("Failed to get depth image!")
