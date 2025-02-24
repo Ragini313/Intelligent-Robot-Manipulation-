@@ -1,0 +1,92 @@
+#!/usr/bin/python3
+
+import rospy
+import numpy as np
+from geometry_msgs.msg import Pose, Point, Quaternion
+from cube_msgs.msg import Cube
+from sensor_msgs.msg import Image, CameraInfo
+from cv_bridge import CvBridge
+from isaac_ros_foundationpose import FoundationPose
+
+# Initialize CV Bridge for converting ROS images to OpenCV format
+cv_bridge = CvBridge()
+
+# Global publisher for cube poses
+cube_publisher = None
+
+# List of 3D model paths for the 15 cubes
+cube_models = [
+    "/path/to/cube_0_model.obj",
+    "/path/to/cube_1_model.obj",
+    "/path/to/cube_2_model.obj",
+    "/path/to/cube_3_model.obj",
+    "/path/to/cube_4_model.obj",
+    "/path/to/cube_5_model.obj",
+    "/path/to/cube_6_model.obj",
+    "/path/to/cube_7_model.obj",
+    "/path/to/cube_8_model.obj",
+    "/path/to/cube_9_model.obj",
+    "/path/to/cube_10_model.obj",
+    "/path/to/cube_11_model.obj",
+    "/path/to/cube_12_model.obj",
+    "/path/to/cube_13_model.obj",
+    "/path/to/cube_14_model.obj"
+]
+
+# Callback function to handle ZED2 RGB and depth images
+def image_callback(rgb_msg, depth_msg, camera_info_msg):
+    global cube_publisher
+
+    # Convert ROS images to OpenCV format
+    rgb_image = cv_bridge.imgmsg_to_cv2(rgb_msg, desired_encoding="bgr8")
+    depth_image = cv_bridge.imgmsg_to_cv2(depth_msg, desired_encoding="32FC1")
+
+    # Get camera intrinsic parameters from CameraInfo
+    K = np.array(camera_info_msg.K).reshape(3, 3)  # Intrinsic matrix
+    dist_coeffs = np.array(camera_info_msg.D)  # Distortion coefficients
+
+    # Initialize FoundationPose
+    foundation_pose = FoundationPose()
+
+    # Detect and estimate poses for each cube
+    for i, model_path in enumerate(cube_models):
+        # Set up FoundationPose with the current cube's 3D model
+        foundation_pose.set_model(model_path)
+
+        # Detect the cube and estimate its pose
+        poses = foundation_pose.estimate_poses(rgb_image, depth_image, K, dist_coeffs)
+
+        # Publish the cube pose if detected
+        if len(poses) > 0:
+            pose = poses[0]  # Assuming only one instance of each cube is present
+            cube_message = Cube()
+            cube_message.position = Point(pose[0], pose[1], pose[2])  # Position (x, y, z)
+            cube_message.orientation = Quaternion(pose[3], pose[4], pose[5], pose[6])  # Orientation (quaternion)
+            cube_message.size = 0.045  # Cube size (adjust as needed)
+            cube_message.name = f"cube_{i}"  # Cube name (e.g., "cube_0", "cube_1", etc.)
+
+            # Publish the cube message
+            cube_publisher.publish(cube_message)
+
+def main():
+    global cube_publisher
+
+    # Initialize ROS node
+    rospy.init_node('cube_pose_from_camera')
+
+    # Publisher for cube poses
+    cube_publisher = rospy.Publisher('/cube', Cube, queue_size=10)
+
+    # Subscribe to ZED2 camera topics = need to be updated depending on the rostopic list of real robot
+    rospy.Subscriber("/zed/zed_node/rgb/image_rect_color", Image, image_callback, callback_args=("rgb",))
+    rospy.Subscriber("/zed/zed_node/depth/depth_registered", Image, image_callback, callback_args=("depth",))
+    rospy.Subscriber("/zed/zed_node/rgb/camera_info", CameraInfo, image_callback, callback_args=("camera_info",))
+
+    # Spin to keep the node running
+    rospy.spin()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        rospy.loginfo("Shutting down cube_pose_from_camera node.")
