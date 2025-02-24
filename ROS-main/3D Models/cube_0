@@ -3,7 +3,7 @@
 # File produced by Open Asset Import Library (http://www.assimp.sf.net)
 # (assimp v4.1.0)
 
-
+## Important note that this file does not contain color info, when viewed, it displays a grey cube with letters on its faces.
 
 # 263 vertex positions
 v  -0.02249996922910213 0.02249996922910213 0.02249996922910213
