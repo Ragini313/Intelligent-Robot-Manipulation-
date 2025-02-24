@@ -1,1 +1,23 @@
+## This is just a sample .obj file of a 4.5cm cube
 
+# Cube with 4.5 cm side length
+# Vertices (8 corners of the cube)
+v -2.25 -2.25 -2.25  # Bottom-left-front
+v  2.25 -2.25 -2.25  # Bottom-right-front
+v  2.25  2.25 -2.25  # Top-right-front
+v -2.25  2.25 -2.25  # Top-left-front
+v -2.25 -2.25  2.25  # Bottom-left-back
+v  2.25 -2.25  2.25  # Bottom-right-back
+v  2.25  2.25  2.25  # Top-right-back
+v -2.25  2.25  2.25  # Top-left-back
+
+# Faces (6 faces of the cube)
+f 1 2 3 4  # Front face
+f 5 6 7 8  # Back face
+f 1 2 6 5  # Bottom face
+f 3 4 8 7  # Top face
+f 1 4 8 5  # Left face
+f 2 3 7 6  # Right face
+
+
+# Texture (
