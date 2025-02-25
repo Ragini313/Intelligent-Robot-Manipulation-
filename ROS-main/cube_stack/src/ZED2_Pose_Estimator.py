@@ -8,7 +8,7 @@
 #Output the poses in a global frame (world frame) using the /tf transform tree if needed.
 
 #Code implementation below:
-
+----------------------
 import rospy
 import cv2
 from sensor_msgs.msg import Image, CameraInfo
@@ -16,6 +16,7 @@ from cv_bridge import CvBridge
 import numpy as np
 import tf2_ros
 import geometry_msgs.msg
+from message_filters import TimeSynchronizer, Subscriber
 
 # Initialize OpenCV Bridge
 bridge = CvBridge()
@@ -23,19 +24,22 @@ bridge = CvBridge()
 # Camera intrinsics
 fx, fy, cx, cy = None, None, None, None
 
+# TF2 Buffer and Listener
+tf_buffer = tf2_ros.Buffer()
+tf_listener = tf2_ros.TransformListener(tf_buffer)
+
 def camera_info_callback(msg):
     """Callback to get camera intrinsic parameters from CameraInfo message."""
     global fx, fy, cx, cy
-    fx = msg.K[0]  # Focal length x, fx (focal length in pixels, x-axis): 527.2972398956961 (to be used if we cant access K matrix)
-    fy = msg.K[4]  # Focal length y, fy (focal length in pixels, y-axis): 527.2972398956961
-    cx = msg.K[2]  # Principal point x, cx (principal point x-coordinate): 659.3049926757812
-    cy = msg.K[5]  # Principal point y, cy (principal point y-coordinate): 371.39849853515625
+    fx = msg.K[0]  # Focal length x
+    fy = msg.K[4]  # Focal length y
+    cx = msg.K[2]  # Principal point x
+    cy = msg.K[5]  # Principal point y
     rospy.loginfo("Camera intrinsics received.")
-    
 
 def validate_cube_size(x, y, w, h, depth_image):
     """
-    Validate if the detected bounding box corresponds to the expected cube size of 4.5cm.
+    Validate if the detected bounding box corresponds to the expected cube size of 4.5 cm.
     """
     global fx, fy
 
@@ -57,7 +61,7 @@ def validate_cube_size(x, y, w, h, depth_image):
     else:
         return False
 
-def detect_cubes(rgb_image, depth_image): ##currently i use a very basic color tracking method to detect cubes, we should replace it with YOLO or ...
+def detect_cubes(rgb_image, depth_image):
     """
     Detect cubes in the RGB image using simple color thresholding.
     Validate detected cubes based on real-world size.
@@ -118,8 +122,6 @@ def transform_to_world(positions, camera_frame="zed2_camera_frame"):
     Returns a list of poses in the world frame.
     """
     world_positions = []
-    tf_buffer = tf2_ros.Buffer()
-    tf_listener = tf2_ros.TransformListener(tf_buffer)
 
     try:
         # Get the transformation from the camera frame to the world frame
@@ -138,7 +140,7 @@ def transform_to_world(positions, camera_frame="zed2_camera_frame"):
 
     return world_positions
 
-def image_callback(msg):
+def image_callback(rgb_msg, depth_msg):
     """
     Main callback to process the RGB image and calculate cube poses.
     """
@@ -147,39 +149,24 @@ def image_callback(msg):
     # Ensure camera intrinsics are available
     if fx is None or fy is None:
         rospy.logwarn("Camera intrinsics not available yet!")
-        return ## we can skip this code part if we just manually enter the camera parameters in the beginning
+        return
 
-    # Convert ROS Image message to OpenCV format
-    rgb_image = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+    # Convert ROS Image messages to OpenCV format
+    rgb_image = bridge.imgmsg_to_cv2(rgb_msg, desired_encoding='bgr8')
+    depth_image = bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
 
     # Detect cubes in the image
-    cube_centers, annotated_image = detect_cubes(rgb_image)
+    cube_centers, annotated_image = detect_cubes(rgb_image, depth_image)
 
-    # Retrieve depth map
-    try:
-        depth_msg = rospy.wait_for_message('/zed2/zed_node/depth/depth_registered', Image, timeout=1.0)
-        depth_image = bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+    # Get 3D positions of the cubes in the camera frame
+    positions = get_3d_positions(cube_centers, depth_image)
 
-        # Get 3D positions of the cubes in the camera frame
-        positions = get_3d_positions(cube_centers, depth_image)
+    # Optionally transform to world frame
+    world_positions = transform_to_world(positions)
 
-        # Optionally transform to world frame
-        world_positions = transform_to_world(positions)
-
-        # Publish cube poses
-        for pos in world_positions:
-            cube_msg = Cube()
-            cube_msg.position = geometry_msgs.msg.Point(pos[0], pos[1], pos[2])
-            cube_msg.orientation = geometry_msgs.msg.Quaternion(0, 0, 0, 1)  # Default orientation
-            cube_pub.publish(cube_msg)
-
-        # Display the annotated RGB image
-        cv2.imshow("Cube Detection", annotated_image)
-        cv2.waitKey(1)
-
-    except rospy.ROSException as e:
-        rospy.logwarn("Failed to get depth image!")
-        return
+    # Publish cube poses (replace with your custom message type)
+    for pos in world_positions:
+        rospy.loginfo(f"Cube position in world frame: {pos}")
 
     # Display the annotated RGB image
     cv2.imshow("Cube Detection", annotated_image)
@@ -189,11 +176,17 @@ if __name__ == "__main__":
     rospy.init_node("zed2_cube_detector")
 
     # Subscribe to camera topics
-    rospy.Subscriber("/zed2/zed_node/left/image_rect_color", Image, image_callback)
+    rgb_sub = Subscriber("/zed2/zed_node/left/image_rect_color", Image)
+    depth_sub = Subscriber("/zed2/zed_node/depth/depth_registered", Image)
+    ts = TimeSynchronizer([rgb_sub, depth_sub], queue_size=10)
+    ts.registerCallback(image_callback)
+
+    # Subscribe to camera info
     rospy.Subscriber("/zed2/zed_node/depth/camera_info", CameraInfo, camera_info_callback)
 
     rospy.spin()
 
+----------------------
 
 ## Extra info for my research: 
 
