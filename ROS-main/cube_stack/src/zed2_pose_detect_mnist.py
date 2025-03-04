@@ -1,103 +1,61 @@
-#!/usr/bin/env python3
-
-#From rostopic list, Access the following ZED2 ROS topics:
-#-RGB Image: /zed2/zed_node/left/image_rect_color
-#-Depth Map: /zed2/zed_node/depth/depth_registered
-#-Camera Info: /zed2/zed_node/depth/camera_info
-
-
-#Code implementation below using rgb and depth msg:
-----------------------
-
-
-import rospy
 import cv2
 import numpy as np
-from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
-from geometry_msgs.msg import Pose, Point, Quaternion
-from std_msgs.msg import String
 import tensorflow as tf
 
 class CubeDetector:
-    def __init__(self):
-        # Initialize ROS node
-        rospy.init_node('cube_detector', anonymous=True)
-        
-        # ROS publishers for cube positions and orientations
-        self.cube_poses_pub = rospy.Publisher('/cube_poses', Pose, queue_size=10)
-        self.cube_digits_pub = rospy.Publisher('/cube_digits', String, queue_size=10)
-        
-        # Subscribe to ZED2 camera topics (confirm if the msg is correctly written)
-        self.bridge = CvBridge()
-        self.image_sub = rospy.Subscriber('/zed2/rgb/image_rect_color', Image, self.image_callback)
-        self.depth_sub = rospy.Subscriber('/zed2/depth/depth_registered', Image, self.depth_callback)
-        
-        # Store the latest depth image
-        self.current_depth = None
-        
-        # Load MNIST model for digit recognition
-        try:
-            self.digit_model = tf.keras.models.load_model('/path/to/digit_recognition_model')
-            rospy.loginfo("Digit recognition model loaded successfully")
-        except Exception as e:
-            rospy.logerr(f"Failed to load digit model: {e}")
-            self.digit_model = None
-            
-        rospy.loginfo("Cube detector initialized")
-        
-    def depth_callback(self, depth_msg):
-        """Store the latest depth image"""
-        try:
-            self.current_depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
-        except Exception as e:
-            rospy.logerr(f"Failed to convert depth image: {e}")
+    def __init__(self, model_path=None):
+        # Load MNIST model for digit recognition if provided
+        self.digit_model = None
+        if model_path:
+            try:
+                self.digit_model = tf.keras.models.load_model(model_path)
+                print("Digit recognition model loaded successfully")
+            except Exception as e:
+                print(f"Failed to load digit model: {e}")
     
-    def image_callback(self, img_msg):
-        """Process RGB image to detect cubes and digits"""
+    def process_images(self, rgb_image, depth_image=None):
+        """Process RGB and depth images to detect cubes and digits"""
         try:
-            # Convert ROS image to OpenCV format
-            cv_image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
+            # Make a copy of the image for visualization
+            display_image = rgb_image.copy()
             
             # Detect cubes
-            cube_positions = self.detect_cubes(cv_image)
+            cube_positions = self.detect_cubes(rgb_image)
+            results = []
             
             # Process each detected cube
             for i, (x, y, w, h) in enumerate(cube_positions):
                 # Extract cube region
-                cube_roi = cv_image[y:y+h, x:x+w]
+                cube_roi = rgb_image[y:y+h, x:x+w]
                 
                 # Get depth at cube center if depth data is available
                 z = None
-                if self.current_depth is not None:
+                if depth_image is not None:
                     center_y, center_x = y + h//2, x + w//2
-                    if 0 <= center_y < self.current_depth.shape[0] and 0 <= center_x < self.current_depth.shape[1]:
-                        z = self.current_depth[center_y, center_x]
+                    if 0 <= center_y < depth_image.shape[0] and 0 <= center_x < depth_image.shape[1]:
+                        z = depth_image[center_y, center_x]
                 
                 # Recognize digit on top face
                 digit = self.recognize_digit(cube_roi)
                 
-                # Create and publish cube pose
-                if z is not None:
-                    pose = Pose()
-                    pose.position = Point(x=(x + w/2), y=(y + h/2), z=z)
-                    pose.orientation = Quaternion(x=0, y=0, z=0, w=1)  # Default orientation for now
-                    self.cube_poses_pub.publish(pose)
-                    
-                # Publish recognized digit
-                self.cube_digits_pub.publish(String(data=str(digit)))
+                # Store results
+                cube_info = {
+                    'position': (x + w/2, y + h/2, z if z is not None else float('nan')),
+                    'digit': digit,
+                    'bbox': (x, y, w, h)
+                }
+                results.append(cube_info)
                 
                 # Visualize detection
-                cv2.rectangle(cv_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                cv2.putText(cv_image, f"Digit: {digit}", (x, y - 10),
+                cv2.rectangle(display_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.putText(display_image, f"Digit: {digit}", (x, y - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
             
-            # Display the processed image
-            cv2.imshow("Cube Detection", cv_image)
-            cv2.waitKey(1)
+            return results, display_image
             
         except Exception as e:
-            rospy.logerr(f"Error processing image: {e}")
+            print(f"Error processing image: {e}")
+            return [], rgb_image
     
     def detect_cubes(self, image):
         """Detect cubes in the image"""
@@ -168,16 +126,49 @@ class CubeDetector:
         
         return "?"
 
-    def run(self):
-        """Run the node"""
-        rospy.spin()
+# Implementation
 
-if __name__ == '__main__':
-    try:
-        detector = CubeDetector()
-        detector.run()
-    except rospy.ROSInterruptException:
-        pass
+def main():
+    # Path to your MNIST model
+    model_path = None  # Replace with path to your model if available
+    
+    # Initialize detector
+    detector = CubeDetector(model_path)
+    
+    # Load your RGB and depth images
+    rgb_image = cv2.imread('/home/ragini/Desktop/iRobMan Lab/zed2_rgb_raw_image.png')
+    depth_image = cv2.imread('/home/ragini/Desktop/iRobMan Lab/zed2_depth_image.png', cv2.IMREAD_ANYDEPTH)  # For 16-bit depth images
+    
+    # Process images
+    results, display_image = detector.process_images(rgb_image, depth_image)
+    
+    # Print results
+    for i, cube in enumerate(results):
+        print(f"Cube {i+1}:")
+        print(f"  Position (x, y, z): {cube['position']}")
+        print(f"  Detected digit: {cube['digit']}")
+        print(f"  Bounding box: {cube['bbox']}")
+    
+    # Display result
+    cv2.imshow("Cube Detection", display_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
+
+
+
+## Output is :
+# Cube 1:
+#   Position (x, y, z): (580.0, 294.5, 0)
+#   Detected digit: ?
+#   Bounding box: (567, 282, 26, 25)
+# Cube 2:
+#   Position (x, y, z): (37.5, 307.5, 35)
+#   Detected digit: ?
+#   Bounding box: (0, 272, 75, 71)
+
 
 
 
