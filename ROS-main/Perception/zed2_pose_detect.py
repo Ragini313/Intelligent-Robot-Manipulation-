@@ -59,7 +59,7 @@ class CubeDetector:
         for contour in contours:
             # Filter contours by area
             area = cv2.contourArea(contour)
-            if area < 500 or area > 10000:
+            if area < 500 or area > 1000:
                 continue
             
             # Get bounding rectangle
@@ -105,7 +105,8 @@ class CubeDetector:
             detected_cubes.append(cube_info)
         
         return detected_cubes
-    
+        
+    ## This function will be updated with the digit detector neural network ,the code below is a placeholder.
     def recognize_digit(self, cube_image):
         """
         Simple digit recognition using thresholding and contour analysis
@@ -209,9 +210,6 @@ def main():
     rgb_image = cv2.imread(rgb_path)
     depth_image = cv2.imread(depth_path, cv2.IMREAD_ANYDEPTH)
 
-    # ## Crop image to only view the bottom-half of the table
-    # rgb_image_cropped = 
-    # depth_image_cropped = 
     
     # Initialize detector
     detector = CubeDetector()
@@ -259,15 +257,7 @@ if __name__ == '__main__':
 #     ## still have not managed to cut the lower half of the image
 
 
-## Output is :
-# Cube 1:
-#   Position (x, y, z): (580.0, 294.5, 0)
-#   Detected digit: ?
-#   Bounding box: (567, 282, 26, 25)
-# Cube 2:
-#   Position (x, y, z): (37.5, 307.5, 35)
-#   Detected digit: ?
-#   Bounding box: (0, 272, 75, 71)
+
 
 
 
