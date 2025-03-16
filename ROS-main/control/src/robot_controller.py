@@ -72,7 +72,7 @@ class RobotMover(object):
         if success:
             rospy.loginfo(f"Robot arm to given pose:\n {target_pose}")
         else:
-            rospy.logerr("Robot arm was not able to go back to ready pose")
+            rospy.logerr(f"Robot arm was not able to go to pose:\n {target_pose}")
 
         return success
 
@@ -134,9 +134,9 @@ class RobotMover(object):
         success = self.gripper_group.go(wait=True)
         self.gripper_group.stop()
         if success:
-            rospy.loginfo("Robot moved successfully to pre-grasp pose")
+            rospy.loginfo("Robot successfully opened gripper")
         else:
-            rospy.logerr("Encountered error during pre-grasp motion")
+            rospy.logerr("Encountered error during opening gripper")
         return success
 
 
@@ -144,9 +144,9 @@ class RobotMover(object):
         rospy.loginfo("Closing Gripper for Grasping")
         success = self.grasp_controller.grasp()
         if success:
-            rospy.loginfo("Robot moved successfully to pre-grasp pose")
+            rospy.loginfo("Opening gripper successfully")
         else:
-            rospy.logerr("Encountered error during pre-grasp motion")
+            rospy.logerr("Encountered error during opening gripper")
         return success
 
 
@@ -167,9 +167,9 @@ class RobotMover(object):
         self.arm_group.clear_pose_targets()
 
         if success:
-            rospy.loginfo("Robot moved successfully to pre-grasp pose")
+            rospy.loginfo("Robot moved successfully up")
         else:
-            rospy.logerr("Encountered error during pre-grasp motion")
+            rospy.logerr("Encountered error during moving up")
         return success
 
 
@@ -186,7 +186,7 @@ class RobotMover(object):
         self.arm_group.clear_pose_targets()
 
         if success:
-            rospy.loginfo("Robot moved successfully to pre-grasp pose")
+            rospy.loginfo("Robot moved successfully moved down")
         else:
-            rospy.logerr("Encountered error during pre-grasp motion")
+            rospy.logerr("Encountered error during downward movement")
         return success
