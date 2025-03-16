@@ -62,3 +62,10 @@ class GraspController(object):
 
         self.gripper_grasp_publisher.publish(grasp_action_goal)
         rospy.sleep(1)
+
+        if abs(self.joint_states.effort[0]) + abs(self.joint_states.effort[1]) > 5:
+            rospy.loginfo("Grasping was successful")
+            return True
+        else:
+            rospy.logerr("Grasping failed")
+            return False
