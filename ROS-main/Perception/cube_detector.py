@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 import rospy
 import cv2
 import numpy as np
@@ -21,11 +20,11 @@ class CubeDetector:
         # Initialize CV bridge for converting between ROS and OpenCV images
         self.bridge = CvBridge()
         
-        # Color range for white and yellow cubes in HSV space
-        # White: low saturation, high value
-        self.white_range = (np.array([0, 0, 180]), np.array([180, 30, 255]))
-        # Yellow: specific hue range with moderate saturation and high value
-        self.yellow_range = (np.array([20, 100, 100]), np.array([30, 255, 255]))
+        # Color ranges for white and yellow cubes in HSV space with broader thresholds
+        # White: expanded range to account for lighting variations
+        self.white_range = (np.array([0, 0, 150]), np.array([180, 45, 255]))
+        # Yellow: expanded hue range with broader saturation and value
+        self.yellow_range = (np.array([15, 80, 80]), np.array([35, 255, 255]))
         
         # Create a TF buffer and listener
         self.tf_buffer = tf2_ros.Buffer()
@@ -36,15 +35,25 @@ class CubeDetector:
         self.dist_coeffs = None
         
         # The size of the cube (in meters)
-        self.cube_size = 0.05  # real cube is 4.5cm , used 5cm for tolerances
+        self.cube_size = 0.05  # real cube is 4.5cm, used 5cm for tolerances
         
         # Minimum contour area to consider (in pixels²)
-        self.min_contour_area = 1000  # I increased to filter out small corners
+        self.min_contour_area = 500  # Reduced to detect smaller cubes at distance
+        
+        # Maximum contour area to filter out very large regions
+        self.max_contour_area = 50000
+        
+        # Parameters for adaptive thresholding
+        self.use_adaptive_threshold = True
+        self.block_size = 11
+        self.c_value = 2
         
         # Publishers for visualization
         self.marker_pub = rospy.Publisher('/cube_markers', MarkerArray, queue_size=10)
         self.debug_image_pub = rospy.Publisher('/cube_detection/debug_image', Image, queue_size=10)
         self.mask_pub = rospy.Publisher('/cube_detection/mask', Image, queue_size=10)
+        self.white_mask_pub = rospy.Publisher('/cube_detection/white_mask', Image, queue_size=10)
+        self.yellow_mask_pub = rospy.Publisher('/cube_detection/yellow_mask', Image, queue_size=10)
         
         # Subscribe to camera info once to get camera matrix
         rospy.Subscriber('/zed2/zed_node/rgb/camera_info', CameraInfo, self.camera_info_callback, queue_size=1)
@@ -108,14 +117,30 @@ class CubeDetector:
             rospy.logerr(f"Error processing images: {e}")
     
     def detect_cubes(self, rgb_img, depth_img, debug_img, frame_id):
-        # Convert RGB image to HSV for better color segmentation
-        hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
+        # Apply bilateral filter to reduce noise while preserving edges
+        filtered_img = cv2.bilateralFilter(rgb_img, 9, 75, 75)
         
-        # Create mask for white cubes
-        white_mask = cv2.inRange(hsv_img, self.white_range[0], self.white_range[1])
+        # Convert filtered RGB image to HSV for better color segmentation
+        hsv_img = cv2.cvtColor(filtered_img, cv2.COLOR_BGR2HSV)
+        
+        # Create mask for white cubes with multiple thresholds to handle lighting variations
+        white_mask1 = cv2.inRange(hsv_img, self.white_range[0], self.white_range[1])
+        
+        # For white, also try a luminance-based approach
+        gray_img = cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY)
+        _, white_mask2 = cv2.threshold(gray_img, 170, 255, cv2.THRESH_BINARY)
+        
+        # Combine white masks
+        white_mask = cv2.bitwise_or(white_mask1, white_mask2)
+        
+        # Publish white mask for debugging
+        self.white_mask_pub.publish(self.bridge.cv2_to_imgmsg(white_mask, "mono8"))
         
         # Create mask for yellow cubes
         yellow_mask = cv2.inRange(hsv_img, self.yellow_range[0], self.yellow_range[1])
+        
+        # Publish yellow mask for debugging
+        self.yellow_mask_pub.publish(self.bridge.cv2_to_imgmsg(yellow_mask, "mono8"))
         
         # Combine masks
         combined_mask = cv2.bitwise_or(white_mask, yellow_mask)
@@ -126,7 +151,7 @@ class CubeDetector:
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
         
         # Additional morphological closing to connect nearby components
-        kernel_close = np.ones((15, 15), np.uint8)
+        kernel_close = np.ones((9, 9), np.uint8)  # Reduced from 15x15 to avoid merging different cubes
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel_close)
         
         # Publish the mask for debugging
@@ -140,25 +165,30 @@ class CubeDetector:
         
         cube_poses = []
         
-        # Process top N largest contours
-        for i, contour in enumerate(contours[:10]):  # Process up to 10 largest contours
+        # Process all contours that meet our criteria
+        for i, contour in enumerate(contours):
             area = cv2.contourArea(contour)
             
-            # Filter out small contours - significantly increased threshold
-            if area > self.min_contour_area:
+            # Filter contours by area - not too small, not too large
+            if self.min_contour_area < area < self.max_contour_area:
                 # Check if the contour is square-like
                 peri = cv2.arcLength(contour, True)
-                approx = cv2.approxPolyDP(contour, 0.04 * peri, True)
+                approx = cv2.approxPolyDP(contour, 0.05 * peri, True)  # Increased epsilon for better approximation
                 
-                # If it has 4 corners, it's likely a square/rectangle
-                # Or if it's a more complex shape but has reasonable aspect ratio
-                if len(approx) >= 4 and len(approx) <= 8:
-                    # Get bounding rectangle
-                    x, y, w, h = cv2.boundingRect(contour)
-                    aspect_ratio = float(w) / h
+                # Get bounding rectangle
+                x, y, w, h = cv2.boundingRect(contour)
+                aspect_ratio = float(w) / h
+                
+                # For cubes viewed at angles, the aspect ratio can vary
+                # We're more permissive with the aspect ratio check
+                if 0.5 <= aspect_ratio <= 2.0 and len(approx) >= 4:
+                    # Check solidity (area ratio) to distinguish solid shapes from complex outlines
+                    hull = cv2.convexHull(contour)
+                    hull_area = cv2.contourArea(hull)
+                    solidity = float(area) / hull_area if hull_area > 0 else 0
                     
-                    # Check if it's reasonably square-like (not too elongated)... does this enhance the results? if not, delete
-                    if 0.7 <= aspect_ratio <= 1.3:
+                    # A cube should be reasonably solid
+                    if solidity > 0.7:
                         # Draw contour on debug image
                         contour_color = (255, 255, 0)  # BGR: Cyan
                         cv2.drawContours(debug_img, [contour], -1, contour_color, 2)
@@ -184,25 +214,29 @@ class CubeDetector:
                         
                         # Get depth at the center of the contour
                         # Apply a larger averaging window to reduce noise
-                        window_size = 5
+                        window_size = 7  # Increased from 5
                         depth_window = depth_img[max(0, cy-window_size):min(depth_img.shape[0], cy+window_size+1),
                                                 max(0, cx-window_size):min(depth_img.shape[1], cx+window_size+1)]
                         
                         # Filter out invalid/NaN depth values
-                        valid_depths = depth_window[(~np.isnan(depth_window)) & (depth_window > 0) & (depth_window < 1.0)]
+                        valid_depths = depth_window[(~np.isnan(depth_window)) & (depth_window > 0) & (depth_window < 1.5)]  # Increased max depth
                         
                         if len(valid_depths) > 0:
                             # Get median depth in meters
                             depth_val = np.median(valid_depths)
                             
-                            # Filter out cubes that are too far or too close
-                            if 0.2 <= depth_val <= 0.8:  # Adjust these thresholds as needed
+                            # Filter out cubes that are too far or too close with expanded range
+                            if 0.1 <= depth_val <= 2.0:  # Wider range to detect more distant cubes
                                 # Display depth on image
                                 cv2.putText(debug_img, f"D: {depth_val:.3f}m", (cx - 20, cy + 20), 
                                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, contour_color, 2)
                                 
                                 # Display area on image
                                 cv2.putText(debug_img, f"A: {area:.0f}", (cx - 20, cy + 40), 
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, contour_color, 2)
+                                
+                                # Display solidity
+                                cv2.putText(debug_img, f"S: {solidity:.2f}", (cx - 20, cy + 60), 
                                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, contour_color, 2)
                                 
                                 # Create a pose for the cube
@@ -212,7 +246,7 @@ class CubeDetector:
         
         return cube_poses
 
-    # def load_digit_model(self):
+     # def load_digit_model(self):
     
     # # Load MNIST dataset or use a pre-trained model
     # # For simplicity, let's assume we have a pre-trained model
@@ -242,6 +276,8 @@ class CubeDetector:
     #     digit = np.random.randint(0, 10)
         
     #     return digit
+    
+
     
     def create_cube_pose(self, cx, cy, depth, rect, frame_id):
         try:
@@ -308,8 +344,7 @@ class CubeDetector:
             marker.scale.z = self.cube_size
             
             # Set color to white or yellow based on the detected color
-            # You can add logic here to determine the color based on the mask
-            # For simplicity, we'll set it to white
+            # For now using white with transparency
             marker.color = ColorRGBA(1.0, 1.0, 1.0, 0.7)  # RGBA: White
                 
             marker.lifetime = rospy.Duration(0.5)  # Display for 0.5 seconds
@@ -320,17 +355,24 @@ class CubeDetector:
         if marker_array.markers:
             self.marker_pub.publish(marker_array)
 
-    def set_color_range(self, lower_hsv, upper_hsv):
+    def set_color_range(self, color_type, lower_hsv, upper_hsv):
         """Utility method to update color thresholds at runtime"""
-        self.color_range = (np.array(lower_hsv), np.array(upper_hsv))
-        rospy.loginfo(f"Updated color range to: {lower_hsv} - {upper_hsv}")
+        if color_type == 'white':
+            self.white_range = (np.array(lower_hsv), np.array(upper_hsv))
+            rospy.loginfo(f"Updated white range to: {lower_hsv} - {upper_hsv}")
+        elif color_type == 'yellow':
+            self.yellow_range = (np.array(lower_hsv), np.array(upper_hsv))
+            rospy.loginfo(f"Updated yellow range to: {lower_hsv} - {upper_hsv}")
+        else:
+            rospy.logwarn(f"Unknown color type: {color_type}")
 
 def main():
     try:
         detector = CubeDetector()
-        # You can tune these parameters at runtime if needed
-        # detector.set_color_range([0, 0, 180], [180, 30, 255])  # White in HSV
-        # detector.min_contour_area = 1000  # Minimum area to consider
+        # Tune these parameters at runtime if needed
+        # detector.set_color_range('white', [0, 0, 180], [180, 30, 255])
+        # detector.set_color_range('yellow', [20, 100, 100], [30, 255, 255])
+        # detector.min_contour_area = 1000
         rospy.spin()
     except rospy.ROSInterruptException:
         pass
