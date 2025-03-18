@@ -21,7 +21,7 @@ class CubeDetector:
         # Initialize CV bridge for converting between ROS and OpenCV images
         self.bridge = CvBridge()
         
-        # Define color range for white and yellow cubes in HSV space
+        # Color range for white and yellow cubes in HSV space
         # White: low saturation, high value
         self.white_range = (np.array([0, 0, 180]), np.array([180, 30, 255]))
         # Yellow: specific hue range with moderate saturation and high value
@@ -31,17 +31,17 @@ class CubeDetector:
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
         
-        # Camera matrix and distortion coefficients will be populated from camera_info
+        # Camera matrix and distortion coefficients will be populated from camera_info (msg)
         self.camera_matrix = None
         self.dist_coeffs = None
         
-        # Define the size of the cube (in meters)
-        self.cube_size = 0.05  # 5cm cube - adjust to your actual cube size
+        # The size of the cube (in meters)
+        self.cube_size = 0.05  # real cube is 4.5cm , used 5cm for tolerances
         
         # Minimum contour area to consider (in pixels²)
-        self.min_contour_area = 1000  # Increased to filter out small corners
+        self.min_contour_area = 1000  # I increased to filter out small corners
         
-        # Create publishers for visualization
+        # Publishers for visualization
         self.marker_pub = rospy.Publisher('/cube_markers', MarkerArray, queue_size=10)
         self.debug_image_pub = rospy.Publisher('/cube_detection/debug_image', Image, queue_size=10)
         self.mask_pub = rospy.Publisher('/cube_detection/mask', Image, queue_size=10)
@@ -55,11 +55,11 @@ class CubeDetector:
             rospy.loginfo("Waiting for camera info...")
             rate.sleep()
             
-        # Set up synchronized subscribers for RGB and depth images
+        # Synchronized subscribers for RGB and depth images
         self.rgb_sub = message_filters.Subscriber('/zed2/zed_node/rgb/image_rect_color', Image)
         self.depth_sub = message_filters.Subscriber('/zed2/zed_node/depth/depth_registered', Image)
         
-        # Create a time synchronizer with larger queue size and slop
+        # Time synchronizer with larger queue size and slop
         self.ts = message_filters.ApproximateTimeSynchronizer(
             [self.rgb_sub, self.depth_sub], 30, 0.5)
         self.ts.registerCallback(self.image_callback)
@@ -157,7 +157,7 @@ class CubeDetector:
                     x, y, w, h = cv2.boundingRect(contour)
                     aspect_ratio = float(w) / h
                     
-                    # Check if it's reasonably square-like (not too elongated)
+                    # Check if it's reasonably square-like (not too elongated)... does this enhance the results? if not, delete
                     if 0.7 <= aspect_ratio <= 1.3:
                         # Draw contour on debug image
                         contour_color = (255, 255, 0)  # BGR: Cyan
@@ -213,11 +213,11 @@ class CubeDetector:
         return cube_poses
 
     # def load_digit_model(self):
-        
-    #     # Load MNIST dataset or use a pre-trained model
-    #     # For simplicity, let's assume we have a pre-trained model
-    #     # In practice, you would load an actual trained model
-    #     rospy.loginfo("Digit recognition model loaded")
+    
+    # # Load MNIST dataset or use a pre-trained model
+    # # For simplicity, let's assume we have a pre-trained model
+    # # In practice, you would load an actual trained model
+    # rospy.loginfo("Digit recognition model loaded")
 
 
     # def recognize_digit(self, roi):
@@ -328,7 +328,7 @@ class CubeDetector:
 def main():
     try:
         detector = CubeDetector()
-        # We should tune these parameters below at runtime if needed, current values are based on testing with rosbags
+        # You can tune these parameters at runtime if needed
         # detector.set_color_range([0, 0, 180], [180, 30, 255])  # White in HSV
         # detector.min_contour_area = 1000  # Minimum area to consider
         rospy.spin()
