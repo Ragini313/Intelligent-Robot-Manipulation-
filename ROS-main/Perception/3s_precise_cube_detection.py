@@ -2,6 +2,7 @@
 
 ## Following code was tested on rosbag sample_1 and very precisely detected the cubes.
 ## Testing on real robot showed : --
+## TO view the cube odom "timeout 2 rostopic echo -n 1 /cube_4_odom_ed" in bash
 
 import rospy
 from sensor_msgs.msg import Image, CameraInfo
