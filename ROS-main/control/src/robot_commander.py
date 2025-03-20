@@ -49,7 +49,7 @@ class RobotCommander(object):
                         rospy.sleep(1)
                         grasp_success: bool = self.robot_mover.close_gripper()
                         if grasp_success:
-                            rospy.sleep(1)
+                            # rospy.sleep(1)
                             move_up_success: bool = self.robot_mover.move_up()
                             if move_up_success:
                                 rospy.sleep(1)
@@ -59,7 +59,7 @@ class RobotCommander(object):
                                     self.update_pyramid_pose()
         
             self.robot_mover.open_gripper()
-            rospy.sleep(1)
+            # rospy.sleep(1)
             is_ready_pose = self.robot_mover.move_to_ready_pose()
 
     

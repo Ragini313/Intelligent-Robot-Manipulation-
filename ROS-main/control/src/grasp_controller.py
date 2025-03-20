@@ -23,7 +23,7 @@ class GraspController(object):
         self.joint_state_subscriber = rospy.Subscriber("/franka_gripper/joint_states", JointState, self.joint_state_callback)
         self.joint_states = JointState()
 
-        rospy.sleep(2)
+        rospy.sleep(1)
         rospy.loginfo("Pick Controller initialized")
 
     def move_result_callback(self, result_msg) -> None:
@@ -38,30 +38,39 @@ class GraspController(object):
         self.joint_states = result_msg
 
 
-    def set_width(self, width, speed=0.15) -> bool:
-        move_action_goal = MoveActionGoal()
+    # def set_width(self, width, speed=0.15) -> bool:
+    #     move_action_goal = MoveActionGoal()
 
-        move_action_goal.goal.width = width
-        move_action_goal.goal.speed = speed
+    #     move_action_goal.goal.width = width
+    #     move_action_goal.goal.speed = speed
 
-        self.gripper_move_publisher.publish(move_action_goal)
-        rospy.sleep(1)
-        rospy.loginfo(self.gripper_move_result.result.success)
-        return self.gripper_move_result.result.success
+    #     self.gripper_move_publisher.publish(move_action_goal)
+    #     rospy.sleep(1)
+    #     rospy.loginfo(self.gripper_move_result.result.success)
+    #     return self.gripper_move_result.result.success
     
+
+    def move_fingers(self, finger_1, finger_2):
+        gripper_data = MoveActionGoal()
+        gripper_data.goal.width = finger_1 + finger_2
+        gripper_data.goal.speed = 0.1
+        self.gripper_move_publisher.publish(gripper_data)
+        rospy.sleep(3)
+        return self.gripper_move_result.result.success
+
 
     def grasp(self):
         grasp_action_goal = GraspActionGoal()
         grasp_action_goal.goal.width = 0.045
 
-        grasp_action_goal.goal.epsilon.inner = 0.05
-        grasp_action_goal.goal.epsilon.outer = 0.05
+        grasp_action_goal.goal.epsilon.inner = 0.1
+        grasp_action_goal.goal.epsilon.outer = 0.1
 
         grasp_action_goal.goal.speed = 0.15
         grasp_action_goal.goal.force = 20.0 # in Newton
 
         self.gripper_grasp_publisher.publish(grasp_action_goal)
-        rospy.sleep(1)
+        rospy.sleep(3)
 
         if abs(self.joint_states.effort[0]) + abs(self.joint_states.effort[1]) > 5:
             rospy.loginfo("Grasping was successful")

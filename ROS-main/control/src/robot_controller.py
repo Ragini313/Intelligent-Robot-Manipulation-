@@ -128,15 +128,25 @@ class RobotMover(object):
         return success
 
 
+    # def open_gripper(self) -> bool:
+    #     rospy.loginfo("Opening gripper...")
+    #     self.gripper_group.set_named_target("open")
+    #     success = self.gripper_group.go(wait=True)
+    #     self.gripper_group.stop()
+    #     if success:
+    #         rospy.loginfo("Robot successfully opened gripper")
+    #     else:
+    #         rospy.logerr("Encountered error during opening gripper")
+    #     return success
+
     def open_gripper(self) -> bool:
-        rospy.loginfo("Opening gripper...")
-        self.gripper_group.set_named_target("open")
-        success = self.gripper_group.go(wait=True)
-        self.gripper_group.stop()
+        success = self.grasp_controller.move_fingers(0.04, 0.04)
+        rospy.sleep(2)
         if success:
             rospy.loginfo("Robot successfully opened gripper")
         else:
             rospy.logerr("Encountered error during opening gripper")
+
         return success
 
 
