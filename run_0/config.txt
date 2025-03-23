@@ -1,0 +1,2 @@
+evaluation acc: 73.62 at epoch 100
+config model: 3 convs [8, 16, 16], linear: (...,Dropout: 0.5, 128),
