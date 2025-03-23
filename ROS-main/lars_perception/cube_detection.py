@@ -168,19 +168,21 @@ class CubeDetector(object):
                     angle = -angle
 
                 if convex:
-                    print(cube_area)
-                    if cube_area < 2000:
-                        detected_cube = Cube(num_cubes, transformed_point.point.x, transformed_point.point.y, rotation=angle)
-                        found_cubes.append(detected_cube)
-                        num_cubes += 1
-                    else:
-                        cube_left, cube_right = self._divide_two_cubes(centroid_x, centroid_y, width=width, height=height, angle=angle)
-                        detected_cube = Cube(num_cubes, cube_left.point.x, cube_left.point.y, rotation=angle)
-                        found_cubes.append(detected_cube)
-                        num_cubes += 1
-                        detected_cube = Cube(num_cubes, cube_right.point.x, cube_right.point.y, rotation=angle)
-                        found_cubes.append(detected_cube)
-                        num_cubes += 1
+                    detected_cube = Cube(num_cubes, transformed_point.point.x, transformed_point.point.y, rotation=angle)
+                    found_cubes.append(detected_cube)
+                    num_cubes += 1
+                    # if cube_area < 2000:
+                    #     detected_cube = Cube(num_cubes, transformed_point.point.x, transformed_point.point.y, rotation=angle)
+                    #     found_cubes.append(detected_cube)
+                    #     num_cubes += 1
+                    # else:
+                    #     cube_left, cube_right = self._divide_two_cubes(centroid_x, centroid_y, width=width, height=height, angle=angle)
+                    #     detected_cube = Cube(num_cubes, cube_left.point.x, cube_left.point.y, rotation=angle)
+                    #     found_cubes.append(detected_cube)
+                    #     num_cubes += 1
+                    #     detected_cube = Cube(num_cubes, cube_right.point.x, cube_right.point.y, rotation=angle)
+                    #     found_cubes.append(detected_cube)
+                    #     num_cubes += 1
         return found_cubes
             
 
@@ -214,11 +216,12 @@ class CubeDetector(object):
                 cube_pose.position.y = cube.y + 0.02
                 cube_pose.position.z = cube.z
 
-                # angle = cube.rotation
-                cube_pose.orientation.x = 0
-                cube_pose.orientation.y = 0
-                cube_pose.orientation.z = math.radians(cube.rotation)
-                cube_pose.orientation.w = 0
+                angle = math.radians(cube.rotation)
+                quats = tft.quaternion_from_euler(0, 0, angle)
+                cube_pose.orientation.x = quats[0]
+                cube_pose.orientation.y = quats[1]
+                cube_pose.orientation.z = quats[2]
+                cube_pose.orientation.w = quats[3]
 
                 rospy.loginfo(f"CubePose: {cube_pose}")
                 cube_pose_publisher = rospy.Publisher(f"cube_{cube.cube_id}_pose", Pose, queue_size=10)

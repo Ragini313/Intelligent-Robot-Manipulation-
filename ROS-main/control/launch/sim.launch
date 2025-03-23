@@ -1,5 +1,0 @@
-<launch>
-
-    <!-- Launch your ROS node (Python or C++) -->
-    <node name="control_node" pkg="control_panda" type="main.py" output="screen"/>
-</launch>
