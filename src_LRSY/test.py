@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+
+import sys
+import math
+import rospy
+import moveit_commander
+import tf.transformations as transformations
+from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
+from nav_msgs.msg import Odometry
+from cube_msgs.msg import Cube
+import numpy as np
+from moveit_msgs.msg import CollisionObject
+from shape_msgs.msg import SolidPrimitive
+from gripper_controller import PickController
+import copy
+from robot_mover import RobotMover
+from sensor_msgs.msg import JointState
+
+
+def build_pyramid(iterations):
+    robot_mover = RobotMover()
+    quats = transformations.quaternion_from_euler(math.pi, 0, math.pi / 4)
+
+    start_pose = Pose()
+    start_pose.position.x = 0.4
+    start_pose.position.y = -0.2
+    start_pose.position.z = 0.2
+    start_pose.orientation.x = quats[0]
+    start_pose.orientation.y = quats[1]
+    start_pose.orientation.z = quats[2]
+    start_pose.orientation.w = quats[3]
+
+    target_pose = Pose()
+    target_pose.position.x = 0.75
+    target_pose.position.y = 0.05
+    target_pose.position.z = 0.2
+    target_pose.orientation.x = quats[0]
+    target_pose.orientation.y = quats[1]
+    target_pose.orientation.z = quats[2]
+    target_pose.orientation.w = quats[3]
+
+    second_level_pose = Pose()
+    second_level_pose.position.x = 0.75
+    second_level_pose.position.y = 0.05
+    second_level_pose.position.z = 0.2
+    second_level_pose.orientation.x = quats[0]
+    second_level_pose.orientation.y = quats[1]
+    second_level_pose.orientation.z = quats[2]
+    second_level_pose.orientation.w = quats[3]
+
+    for i in range(iterations):
+        robot_mover.move_arm_to_pose(pose=start_pose)
+        rospy.sleep(2)
+        robot_mover.move_down(0.07)
+        rospy.sleep(3)
+        robot_mover.close_gripper()
+        rospy.sleep(1)
+        robot_mover.move_up()
+        rospy.sleep(1)
+        target_pose.position.y += -0.06 if i != 0 else 0
+        target_pose.position.z = 0.2
+        robot_mover.move_arm_to_pose(pose=target_pose)
+        rospy.sleep(1)
+        robot_mover.move_down(0.06)
+        rospy.sleep(1)
+        robot_mover.open_gripper()
+        rospy.sleep(1)
+        robot_mover.move_up()
+        rospy.sleep(1)
+        robot_mover.move_to_ready_pose()
+        rospy.sleep(1)
+
+    robot_mover.move_arm_to_pose(pose=start_pose)
+    rospy.sleep(2)
+    robot_mover.move_down(0.07)
+    rospy.sleep(3)
+    robot_mover.close_gripper()
+    rospy.sleep(1)
+    robot_mover.move_up()
+    rospy.sleep(1)
+    second_level_pose.position.y = 0.02
+    second_level_pose.position.z = 0.25
+    robot_mover.move_arm_to_pose(pose=second_level_pose)
+    rospy.sleep(1)
+    robot_mover.move_down(0.065)
+    rospy.sleep(1)
+    robot_mover.open_gripper()
+    rospy.sleep(1)
+    robot_mover.move_up()
+    rospy.sleep(1)
+    robot_mover.move_to_ready_pose()
+    rospy.sleep(1)
+    return
+
+
+def pose_callback(msg: Pose):
+    global cube_poses
+    cube_pose = Pose()
+    cube_pose.position = msg.position
+    cube_pose.orientation = msg.orientation
+    cube_poses.append(cube_pose)
+
+
+
+cube_poses = []
+
+def test(num_cubes, tier=3):
+    from pyramid import pyramid_poses_3_tier, pyramid_poses_5_tier
+    pyramid_poses = pyramid_poses_5_tier if tier == 5 else pyramid_poses_3_tier
+    robot_mover = RobotMover()
+    rospy.sleep(2)
+
+    robot_mover._move_arm_to_observation_pose()
+    rospy.sleep(1)
+    for i in range(num_cubes):
+        sub = rospy.Subscriber(f"/cube_{i}_pose", Pose, pose_callback)
+        rospy.wait_for_message(f"/cube_{i}_pose", Pose)
+        sub.unregister()
+    rate = rospy.Rate(10)
+    global cube_poses
+    print(cube_poses[i])
+    quats = transformations.quaternion_from_euler(math.pi, 0, math.pi / 4)
+    robot_mover.move_to_ready_pose()
+    idx = 2
+    # start_pose = Pose()
+    # start_pose.position.x = cube_poses[idx].position.x
+    # start_pose.position.y = cube_poses[idx].position.y
+    # start_pose.position.z = cube_poses[idx].position.z
+    # start_pose.orientation.x = quats[0]
+    # start_pose.orientation.y = quats[1]
+    # start_pose.orientation.z = quats[2]
+    # start_pose.orientation.w = quats[3]
+
+    # target_pose = Pose()
+    # target_pose.position.x = pyramid_poses[idx][0]
+    # target_pose.position.y = pyramid_poses[idx][1]
+    # target_pose.position.z = pyramid_poses[idx][2]
+    # target_pose.orientation.x = quats[0]
+    # target_pose.orientation.y = quats[1]
+    # target_pose.orientation.z = quats[2]
+    # target_pose.orientation.w = quats[3]
+
+    for i in range(num_cubes):
+        start_pose = Pose()
+        start_pose = cube_poses[i]
+        start_pose.position.x += 0.03 #cube_poses[i].position.x
+        start_pose.position.y += 0.01 #cube_poses[i].position.y
+        start_pose.position.z -= 0.1 #cube_poses[i].position.z
+        # start_pose.orientation.x = quats[0]
+        # start_pose.orientation.y = quats[1]
+        # start_pose.orientation.z = quats[2] # np.deg2rad(-15)
+        # start_pose.orientation.w = quats[3]
+        robot_mover.move_to_pregrasp(start_pose)
+        rospy.sleep(1)
+        robot_mover.move_down(0.06)
+        rospy.sleep(1)
+        robot_mover.picker.grasp()
+        rospy.sleep(1)
+        robot_mover.move_to_ready_pose()
+        rospy.sleep(1)
+
+
+        target_pose = Pose()
+        target_pose.position.x = pyramid_poses[i][0]
+        target_pose.position.y = pyramid_poses[i][1]
+        target_pose.position.z = pyramid_poses[i][2]
+        target_pose.orientation.x = quats[0]
+        target_pose.orientation.y = quats[1]
+        target_pose.orientation.z = quats[2]
+        target_pose.orientation.w = quats[3]
+        robot_mover.move_arm_to_pose(pose=target_pose)
+        # robot_mover.move_to_pregrasp(start_pose)
+        rospy.sleep(1)
+        
+        robot_mover.move_down(0.055)
+        rospy.sleep(1)
+        robot_mover.open_gripper()
+        # robot_mover.close_gripper()
+        # rospy.sleep(2)
+        # robot_mover.move_up()
+        # robot_mover.close_gripper()
+        # rospy.sleep(1)
+        robot_mover.move_to_ready_pose()
+        rospy.sleep(1)
+        
+        # target_pose.position.z = 0.2 + (i * 0.06)
+        # robot_mover.move_arm_to_pose(pose=target_pose)
+        # robot_mover.move_to_pregrasp(target_pose, offset=0.0)
+        # robot_mover.move_arm_to_pose(target_pose)
+        # rospy.sleep(1)
+        # robot_mover.move_down(0.06)
+        # rospy.sleep(1)
+        # robot_mover.open_gripper()
+        # rospy.sleep(1)
+        # robot_mover.move_up()
+        # rospy.sleep(1)
+        # robot_mover.move_to_ready_pose()
+        # rospy.sleep(1)
+
+
+def callback_joint_states(msg):
+    print(msg)
+    rospy.spin()
+
+
+def main():
+    test(6, tier=3)
+
+
+# [-0.0003141398948124972, -0.7846943862227076, 0.00017600309895691389,
+# -2.3567236798899063, -0.0002444393433233702, 1.5709534139573171, 0.785163377982711,
+# Finger Joints
+#  0.0349225178360939, 0.0349225178360939]
+
+## /zed2/zed_node/left_raw/image_raw_color
+## /zed2/zed_node/depth/depth_registered
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
