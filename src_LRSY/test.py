@@ -15,6 +15,7 @@ from gripper_controller import PickController
 import copy
 from robot_mover import RobotMover
 from sensor_msgs.msg import JointState
+from pyramid import pyramid_poses_3_tier, pyramid_poses_5_tier, pyramid_poses_1_tier, pyramid_poses_2_tier, pyramid_poses_4_tier
 
 
 def build_pyramid(iterations):
@@ -100,25 +101,55 @@ def pose_callback(msg: Pose):
     cube_pose.orientation = msg.orientation
     cube_poses.append(cube_pose)
 
+def apply_offset_picking(y_coordinate):
+    y_coordinate_abs = abs(y_coordinate)
+    offset = 0
+    if 0 < y_coordinate_abs < 0.1:
+        offset = 0.005
+    elif 0.1 <= y_coordinate_abs < 0.2:
+        offset = 0.01
+    elif 0.2 <= y_coordinate_abs < 0.3:
+        offset = 0.015
 
+    offset = offset if y_coordinate > 0 else -offset
+    return offset
 
 cube_poses = []
 
-def test(num_cubes, tier=3):
-    from pyramid import pyramid_poses_3_tier, pyramid_poses_5_tier
-    pyramid_poses = pyramid_poses_5_tier if tier == 5 else pyramid_poses_3_tier
+
+def make_tower_coords(num_cubes):
+    z = 0.2
+    positions = [[0.73, -0.2, z + (0.045*i)] for i in range(0, num_cubes, 1)]
+    return positions
+
+
+
+def test(num_cubes, tier):
+
+    if tier == 1:
+        pyramid_poses = make_tower_coords(num_cubes=num_cubes)
+    elif tier == 2:
+        pyramid_poses = pyramid_poses_2_tier
+    elif tier == 3:
+        pyramid_poses = pyramid_poses_3_tier
+    elif tier == 4:
+        pyramid_poses = pyramid_poses_4_tier
+    else:
+        pyramid_poses = pyramid_poses_5_tier
+
+    print(pyramid_poses)
     robot_mover = RobotMover()
     rospy.sleep(2)
-
+    print(num_cubes)
     robot_mover._move_arm_to_observation_pose()
     rospy.sleep(1)
     for i in range(num_cubes):
+        print(i)
         sub = rospy.Subscriber(f"/cube_{i}_pose", Pose, pose_callback)
         rospy.wait_for_message(f"/cube_{i}_pose", Pose)
         sub.unregister()
     rate = rospy.Rate(10)
     global cube_poses
-    print(cube_poses[i])
     quats = transformations.quaternion_from_euler(math.pi, 0, math.pi / 4)
     robot_mover.move_to_ready_pose()
     idx = 2
@@ -143,8 +174,8 @@ def test(num_cubes, tier=3):
     for i in range(num_cubes):
         start_pose = Pose()
         start_pose = cube_poses[i]
-        start_pose.position.x += 0.03 #cube_poses[i].position.x
-        start_pose.position.y += 0.01 #cube_poses[i].position.y
+        start_pose.position.x += 0.04 #cube_poses[i].position.x
+        # start_pose.position.y += apply_offset_picking(y_coordinate=start_pose.position.y) #cube_poses[i].position.y
         start_pose.position.z -= 0.1 #cube_poses[i].position.z
         # start_pose.orientation.x = quats[0]
         # start_pose.orientation.y = quats[1]
@@ -204,7 +235,25 @@ def callback_joint_states(msg):
 
 
 def main():
-    test(6, tier=3)
+    num_cubes = -1
+    tier = -1
+    while tier < 0 and num_cubes < 0:
+        tier = int(input("Give tier of pyramid: "))
+
+        if tier == 1:
+            num_cubes = int(input("Give number of cubes to stack: "))
+        elif tier == 2:
+            num_cubes = 3
+        elif tier == 3:
+            num_cubes = 6
+        elif tier == 4:
+            num_cubes = 10
+        elif tier == 5:
+            num_cubes = 15
+        else:
+            print("Given tier is not defined")
+
+    test(num_cubes=num_cubes, tier=tier)
 
 
 # [-0.0003141398948124972, -0.7846943862227076, 0.00017600309895691389,
