@@ -78,12 +78,9 @@ Then you can pull the images.
    catkin_make
    source devel/setup.bash
 4. Run the pipeline with your desired pyramid configuration.
-a. Terminal 1:
    ```bash
    rosrun <package_name> pose_detect.py               ## Terminal 1
    rosrun <package_name> stack_object.py              ## Terminal 2
-
-
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  For more details, visit the [project repository](https://github.com/pearl-robot-lab/franka_zed_gazebo).
