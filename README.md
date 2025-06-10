@@ -65,11 +65,28 @@ Then you can pull the images.
 
 
 ## To Run our Pipeline
-In order to implement our pipeline:
+1. Create a package inside your source folder in the franka_zed_gazebo workspace of your container:
+   ```bash
+   cd ~/franka_zed_gazebo_ws/src
+   catkin_create_pkg pyramid_pipeline std_msgs rospy moveit_core
+2. Clone this repo into the src folder
+   ```bash
+   git clone https://github.com/Ragini313/Intelligent-Robot-Manipulation-.git src_LRSY
+3. Build the workspace
+   ```bash
+   cd ~/franka_zed_gazebo_ws
+   catkin_make
+   source devel/setup.bash
+4. Run the pipeline with your desired pyramid configuration:
+   Terminal 1:
+   ```bash
+   rosrun <package_name> <pose_detect.py>
+``
+   Terminal 2:
+   ```bash
+   rosrun <package_name> <stack_object.py>
+```
 
-1. First create a package inside your source folder inside the franka zed gazebo folder of your container.
-2. Clone this repo into the src folder.
-3. 
 
 ----------------------------
 For more details, visit the [project repository](https://github.com/pearl-robot-lab/franka_zed_gazebo).
