@@ -77,12 +77,12 @@ Then you can pull the images.
    cd ~/franka_zed_gazebo_ws
    catkin_make
    source devel/setup.bash
-4. Run the pipeline with your desired pyramid configuration://
-  Terminal 1:
+4. Run the pipeline with your desired pyramid configuration:
+a. Terminal 1:
    ```bash
    rosrun <package_name> pose_detect.py
 
-  Terminal 2:
+b. Terminal 2:
    ```bash
    rosrun <package_name> stack_object.py
 ```
