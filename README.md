@@ -80,12 +80,9 @@ Then you can pull the images.
 4. Run the pipeline with your desired pyramid configuration.
 a. Terminal 1:
    ```bash
-   rosrun <package_name> pose_detect.py
+   rosrun <package_name> pose_detect.py               ## Terminal 1
+   rosrun <package_name> stack_object.py              ## Terminal 2
 
-b. Terminal 2:
-   ```bash
-   rosrun <package_name> stack_object.py
-```
 
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
