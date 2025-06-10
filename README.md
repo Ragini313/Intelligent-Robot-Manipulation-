@@ -94,9 +94,10 @@ Then you can pull the images.
 
 
 
-Authors:
-Ragini Pawar
-Lars Waßmann
 
-TU Darmstadt WS 2024/25
-PEARL Lab
+## Authors
+- **Ragini Pawar**  
+- **Lars Waßmann**
+
+TU Darmstadt WS 2024/25  
+[PEARL Lab](https://github.com/pearl-robot-lab)
