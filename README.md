@@ -85,12 +85,12 @@ Then you can pull the images.
   Terminal 2:
    ```bash
    rosrun <package_name> stack_object.py
+```
 
 
-
-----------------------------
-For more details, visit the [project repository](https://github.com/pearl-robot-lab/franka_zed_gazebo).
------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ For more details, visit the [project repository](https://github.com/pearl-robot-lab/franka_zed_gazebo).
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
