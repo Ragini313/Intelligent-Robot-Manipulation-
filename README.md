@@ -2,6 +2,9 @@
 # Franka Zed Gazebo Simulation Project
 ----------
 
+![Gazebo demo](digit pictures/3D Models/robot moving to grab cube.gif)
+![3_tier_pyramid](digit pictures/3D Models/3 tier pyramid_3.gif)
+
 
 ## Overview
 This project involves setting up and working with a Gazebo simulation of the Franka Emika Panda robot equipped with a ZED2 camera for educational purposes, focused on pick-and-place tasks and pyramid construction. The simulation is part of the Pearl Robot Lab's educational resources.
