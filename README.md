@@ -2,8 +2,8 @@
 # Franka Zed Gazebo Simulation Project
 ----------
 
-![Gazebo demo](digit pictures/3D Models/robot moving to grab cube.gif)
-![3_tier_pyramid](digit pictures/3D Models/3 tier pyramid_3.gif)
+![Gazebo demo](./digit pictures/3D Models/robot moving to grab cube.gif)
+![3_tier_pyramid](./digit pictures/3D Models/3 tier pyramid_3.gif)
 
 
 ## Overview
