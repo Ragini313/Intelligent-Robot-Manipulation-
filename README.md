@@ -3,8 +3,8 @@
 ----------
 
 ![Gazebo demo](https://github.com/Ragini313/Intelligent-Robot-Manipulation-/blob/main/digit%20pictures/3D%20Models/robot%20moving%20to%20grab%20cube.gif)
-![3_tier_pyramid](./digit pictures/3D Models/3 tier pyramid_3.gif)
 
+![3_tier_pyramid](https://github.com/Ragini313/Intelligent-Robot-Manipulation-/blob/main/digit%20pictures/3D%20Models/3%20tier%20pyramid_3.gif)
 
 ## Overview
 This project involves setting up and working with a Gazebo simulation of the Franka Emika Panda robot equipped with a ZED2 camera for educational purposes, focused on pick-and-place tasks and pyramid construction. The simulation is part of the Pearl Robot Lab's educational resources.
