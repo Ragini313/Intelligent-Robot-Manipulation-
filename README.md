@@ -2,7 +2,7 @@
 # Franka Zed Gazebo Simulation Project
 ----------
 
-![Gazebo demo](./digit pictures/3D Models/robot moving to grab cube.gif)
+![Gazebo demo](https://github.com/Ragini313/Intelligent-Robot-Manipulation-/blob/main/digit%20pictures/3D%20Models/robot%20moving%20to%20grab%20cube.gif)
 ![3_tier_pyramid](./digit pictures/3D Models/3 tier pyramid_3.gif)
 
 
